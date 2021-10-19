@@ -1,0 +1,26 @@
+---
+title: "Scratch Work"
+author: "Serena Leung"
+date: "10/18/2021"
+output: html_document
+---
+
+```{r}
+library(readr)
+larceny_ca <- read_csv("Rate-of-Larceny-Offenses-by-Population10_11_2021.csv")
+View(larceny_ca)
+```
+
+
+```{r}
+library(astsa)
+library(tidyverse)
+attach(larceny_ca)
+
+larceny_ca$`United States`
+
+tsplot(year, `United States`, col = 4, main = "Larceny Rates", ylab = "Rate of Larceny per 100k people")
+lines(year,California, col = 34)
+abline(v = 2014.9166, col = "green")
+```
+
