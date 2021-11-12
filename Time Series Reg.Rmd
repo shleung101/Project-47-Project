@@ -1,0 +1,98 @@
+---
+title: "SF Data"
+author: "Serena Leung"
+date: "11/11/2021"
+output: html_document
+---
+
+Only SF petty theft data 
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(astsa)
+```
+
+
+```{r}
+library(readr)
+petty_theft <- read_csv("~/Thesis/SF_Police_Department_Incident_Reports__Historical_2003_to_May_2018.csv")
+head(petty_theft)
+```
+
+```{r}
+colnames(petty_theft)
+```
+```{r}
+typeof(petty_theft$Date)
+
+# Convert to Date type
+petty_theft$Date <- mdy(petty_theft$Date)
+```
+
+
+```{r}
+petty_freq <- petty_theft %>% 
+  select(Date, Descript) %>% 
+  group_by(mon = floor_date(Date, "month")) %>%
+  summarise(freq = n()) %>% 
+  mutate(t = seq(-24, 24), 
+         after_t = ifelse(t < 0, 0, 1))
+
+# petty_theft$mon <- as.character(mon)
+
+
+  # group_by(mon = month(Date)) %>% summarise(sum = count(mon))
+```
+
+Ignore last point, I did not take the full month
+```{r}
+plot(petty_freq$t, petty_freq$freq, type = "l")
+abline(v = 0, col = "green")
+```
+
+
+```{r}
+(fit_a <- lm(petty_freq$freq ~ poly(petty_freq$t, 2)))
+```
+Graph makes sense, currently fitting with a parabola
+```{r}
+tsplot(petty_freq$t, petty_freq$freq, type = "l")
+lines(petty_freq$t, fit_a$fitted.values)
+
+abline(v = 0, col = "green")
+```
+
+Now add in dummy variables
+
+```{r}
+
+(fit_b <- lm(petty_freq$freq ~ poly(petty_freq$after_t), 2))
+```
+
+```{r}
+tsplot(petty_freq$t, petty_freq$freq, type = "l")
+lines(petty_freq$t, fit_b$fitted.values)
+
+abline(v = 0, col = "green")
+```
+```{r}
+attach(petty_freq)
+```
+
+
+```{r}
+(fit_ab <- lm(freq ~ t + I(t^2) + after_t + after_t*t + I(after_t*t^2) ))
+
+```
+
+```{r}
+tsplot(petty_freq$t, petty_freq$freq, type = "p")
+lines(petty_freq$t, fit_ab$fitted.values)
+
+abline(v = 0, col = "green")
+```
+
+Why does mine look so different? Why is it not fitting well?
+
+How do continue with the estimation procedure??? I don't understand estimation procedure
