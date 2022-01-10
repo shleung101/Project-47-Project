@@ -1,0 +1,307 @@
+---
+title: "Synth"
+author: "Serena Leung"
+date: "11/23/2021"
+output: html_document
+---
+
+```{r}
+library(Synth)
+library(tidyverse)
+```
+
+
+Read data 
+```{r}
+library(readxl)
+prop_crime <- read_excel("~/Thesis/Master State Crime.xlsx", 
+    sheet = "Property Crime", skip = 1)
+prop_crime
+```
+
+
+```{r}
+prop_crime <- pivot_longer(prop_crime, cols = c(-State), names_to = "year", values_to = "rate") %>% 
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+prop_crime
+
+
+```
+
+
+```{r}
+dataprep.out <- dataprep(prop_crime, 
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+         list("rate", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",       # ????? 
+         unit.names.variable = "State", # ?????
+         time.variable = "year", 
+         treatment.identifier = 5, 
+         controls.identifier = c(1:4, 6:52),
+         time.optimize.ssr = 2000:2010, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+```
+
+
+
+
+convert to long format 
+(state, year, rate)
+
+Predictors: 
+X1 = CA 2000 - 2010 before treatment (11 x 1) 
+  - since looking at 11 yr gap
+  
+X0 = 51 states 2000 - 2010 before treatment (11 x 51)
+
+Outcomes:
+Z1 = CA 2014 - 2019 after treatment (6 x 1)
+Z0 = 51 states after treatment (6 x 51)
+
+
+```{r}
+synth.out = synth(data.prep.obj = dataprep.out, method = "BFGS")
+```
+
+
+
+Summary Tables
+```{r}
+synth.tables = synth.tab(dataprep.res = dataprep.out, synth.res = synth.out)
+
+names(synth.tables)
+```
+
+Table comparing pre-treatment predictor values for the treated unit, the synthetic control, and all the units in the sample (What does this mean in our case?)
+```{r}
+synth.tables$tab.pred
+```
+
+
+```{r}
+synth.tables$tab.loss
+```
+
+Weights for each state
+```{r}
+synth.tables$tab.w
+```
+
+
+Plotting before and after treatment
+```{r}
+path.plot(synth.res=synth.out, dataprep.res = dataprep.out, 
+          Ylab="Property Crime rate per 100k people", Xlab="year",
+          Legend = c("California","Synthetic California"),
+          Legend.position = "bottomleft")
+abline(v = 2014.9166, col = "red")
+rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
+```
+Gaps 
+```{r}
+gaps.plot(synth.res = synth.out, dataprep.res = c(dataprep.out), Ylab = "Gap in Property Crime rate per 100k people", Xlab= "year", Main = NA)
+abline(v = 2014.9166, col = "red")
+```
+
+
+
+
+
+Adjusting pretreatment periods
+
+```{r}
+prop_crime <- as.data.frame(prop_crime)
+```
+
+
+```{r}
+dataprep2.out <- dataprep(prop_crime, 
+         time.predictors.prior = 2000:2005,
+         special.predictors = list(
+         list("rate", 2000:2005, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",        
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = 5, 
+         controls.identifier = c(1:4, 6:52),
+         time.optimize.ssr = 2000:2005, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+```
+
+```{r}
+synth2.out = synth(data.prep.obj = dataprep2.out, method = "BFGS")
+```
+
+
+
+```{r}
+path.plot(synth.res=synth2.out, dataprep.res = dataprep2.out, 
+          Ylab="Property Crime rate per 100k people", Xlab="year",
+          Legend = c("California","Synthetic California"),
+          Legend.position = "bottomleft")
+abline(v = 2014.9166, col = "red")
+rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
+```
+
+
+```{r}
+iter_year <- function(year){
+  
+   dataprep.out <- dataprep(prop_crime, 
+         time.predictors.prior = 2000:year,
+         special.predictors = list(
+          list("rate", 2000:year, "mean")),  # am I supposed to change this?
+         dependent = "rate", 
+         unit.variable = "ID",       
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = 5, 
+         controls.identifier = c(1:4, 6:52),
+         time.optimize.ssr = 2000:year, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+   
+  synth.out = synth(data.prep.obj = dataprep.out, method = "BFGS")
+  
+  path.plot(synth.res=synth.out, dataprep.res = dataprep.out, 
+          Ylab="Property Crime rate per 100k people", Xlab="year",
+          Legend = c(paste("California", year),"Synthetic"),
+          Legend.position = "bottomleft", tr.intake = 2014.9166)
+  abline(v = 2014.9166, col = "red")
+  rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
+  
+}
+```
+
+
+```{r}
+
+for(i in seq(2000,2010)){
+  iter_year(i)
+}
+
+```
+
+
+
+
+
+
+
+Leave California out, use Alabama as treatment state, remaining 50 states are in the control group
+
+Iterate over different states as the treatment group
+
+```{r}
+# Create generic function that goes through dataprep, synth.out, and plot 
+# for state id 2-51
+
+iter_state <- function(id){   # special cases for id = 1 and 52
+  
+  if (id == 1) {  
+     dataprep.out <- dataprep(prop_crime, 
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+          list("rate", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",       
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = id, 
+         controls.identifier = c((id+1):52),
+         time.optimize.ssr = 2000:2010, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+     
+  } else if (id == 52) {
+    
+     dataprep.out <- dataprep(prop_crime, 
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+          list("rate", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",       
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = id, 
+         controls.identifier = c(1:(id-1)),
+         time.optimize.ssr = 2000:2010, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+     
+  } else
+     dataprep.out <- dataprep(prop_crime, 
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+          list("rate", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",       
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = id, 
+         controls.identifier = c(1:(id-1), (id+1):52),
+         time.optimize.ssr = 2000:2010, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+  
+  synth.out = synth(data.prep.obj = dataprep.out, method = "BFGS")
+  
+  path.plot(synth.res=synth.out, dataprep.res = dataprep.out, 
+          Ylab="Property Crime rate per 100k people", Xlab="year",
+          Legend = c(id,"Synthetic"),
+          Legend.position = "bottomleft", tr.intake = 2014.9166)
+  abline(v = 2014.9166, col = "red")
+  rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
+}
+
+```
+
+
+
+
+```{r}
+for (id in seq(1,52)) {
+  iter_state(id)
+}
+
+
+```
+
+
+
+
+```{r}
+dataprep3.out <- dataprep(prop_crime, 
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+         list("rate", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",       # ????? 
+         unit.names.variable = "State", # ?????
+         time.variable = "year", 
+         treatment.identifier = 1, 
+         controls.identifier = c(2:4, 6:52),
+         time.optimize.ssr = 2000:2010, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+```
+
+```{r}
+synth.out = synth(data.prep.obj = dataprep3.out, method = "BFGS")
+```
+
+```{r}
+path.plot(synth.res=synth.out, dataprep.res = dataprep3.out, 
+          Ylab="Property Crime rate per 100k people", Xlab="year",
+          Legend = c("Alabama","Synthetic Alabama"),
+          Legend.position = "bottomleft")
+abline(v = 2014.9166, col = "red")
+rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
+```
+
+```{r}
+gaps.plot(synth.res = synth.out, dataprep.res = dataprep3.out, Ylab = "Gap in Property Crime rate per 100k people", Xlab= "year", Main = NA)
+abline(v = 2014.9166, col = "red")
+```
+
+
+

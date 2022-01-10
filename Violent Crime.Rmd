@@ -1,0 +1,140 @@
+---
+title: "Violent Crime"
+author: "Serena Leung"
+date: "12/16/2021"
+output: html_document
+---
+
+```{r}
+library(Synth)
+library(tidyverse)
+```
+
+
+Read data 
+```{r}
+library(readxl)
+vio_crime <- read_excel("~/Thesis/Master State Crime.xlsx", 
+    sheet = "Violent Crime", skip = 1)
+vio_crime
+```
+
+
+```{r}
+vio_crime <- pivot_longer(vio_crime, cols = c(-State), names_to = "year", values_to = "rate") %>% 
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+vio_crime
+```
+
+
+Iterating over pretreatment periods
+```{r}
+iter_year <- function(year){
+  
+   dataprep.out <- dataprep(vio_crime, 
+         time.predictors.prior = 2000:year,
+         special.predictors = list(
+          list("rate", 2000:year, "mean")),  # am I supposed to change this?
+         dependent = "rate", 
+         unit.variable = "ID",       
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = 5, 
+         controls.identifier = c(1:4, 6:52),
+         time.optimize.ssr = 2000:year, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+   
+  synth.out = synth(data.prep.obj = dataprep.out, method = "BFGS")
+  
+  path.plot(synth.res=synth.out, dataprep.res = dataprep.out, 
+          Ylab="vio_crimelary rate per 100k people", Xlab="year",
+          Legend = c(paste("California", year),"Synthetic"),
+          Legend.position = "bottomleft", tr.intake = 2014.9166)
+  abline(v = 2014.9166, col = "red")
+  rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
+  
+}
+```
+
+
+```{r}
+for(i in seq(2000,2010)){
+  iter_year(i)
+}
+```
+
+
+
+Iterate over different states as the treatment group
+
+```{r}
+# Create generic function that goes through dataprep, synth.out, and plot 
+# for state id 2-51
+
+iter_state <- function(id){   # special cases for id = 1 and 52
+  
+  if (id == 1) {  
+     dataprep.out <- dataprep(vio_crime, 
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+          list("rate", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",       
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = id, 
+         controls.identifier = c((id+1):52),
+         time.optimize.ssr = 2000:2010, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+     
+  } else if (id == 52) {
+    
+     dataprep.out <- dataprep(vio_crime, 
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+          list("rate", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",       
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = id, 
+         controls.identifier = c(1:(id-1)),
+         time.optimize.ssr = 2000:2010, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+     
+  } else
+     dataprep.out <- dataprep(vio_crime, 
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+          list("rate", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",       
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = id, 
+         controls.identifier = c(1:(id-1), (id+1):52),
+         time.optimize.ssr = 2000:2010, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+  
+  synth.out = synth(data.prep.obj = dataprep.out, method = "BFGS")
+  
+  path.plot(synth.res=synth.out, dataprep.res = dataprep.out, 
+          Ylab="Property Crime rate per 100k people", Xlab="year",
+          Legend = c(id,"Synthetic"),
+          Legend.position = "bottomleft", tr.intake = 2014.9166)
+  abline(v = 2014.9166, col = "red")
+  rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
+}
+
+```
+
+
+
+
+```{r}
+for (id in seq(1,52)) {
+  iter_state(id)
+}
+
+```

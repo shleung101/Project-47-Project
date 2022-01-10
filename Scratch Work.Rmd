@@ -19,8 +19,14 @@ attach(larceny_ca)
 
 larceny_ca$`United States`
 
-tsplot(year, `United States`, col = 4, main = "Larceny Rates", ylab = "Rate of Larceny per 100k people")
-lines(year,California, col = 34)
+tsplot(year, `United States`, col = 'red', main = "Larceny Rates", ylab = "Rate of Larceny per 100k people")
+lines(year,California, col = 'blue')
+#  legend('bottomright',legend = c('United States','California'),
+#        col=c('red','blue'),
+#        lty=c(1,1),
+#        lwd=c(2,2))
 abline(v = 2014.9166, col = "green")
 ```
 
+
+Time Regression 
