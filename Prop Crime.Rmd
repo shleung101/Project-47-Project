@@ -68,6 +68,119 @@ synth.out = synth(data.prep.obj = dataprep.out, method = "BFGS")
 
 
 
+
+
+
+Manually calculating gaps
+
+```{r}
+# Create generic function that goes through dataprep, synth.out, and plot 
+# for state id 2-51
+
+iter_state <- function(id){   # special cases for id = 1 and 52
+  
+  if (id == 1) {  
+     dataprep.out <- dataprep(prop_crime, 
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+          list("rate", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",       
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = id, 
+         controls.identifier = c((id+1):52),
+         time.optimize.ssr = 2000:2010, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+     
+  } else if (id == 52) {
+    
+     dataprep.out <- dataprep(prop_crime, 
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+          list("rate", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",       
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = id, 
+         controls.identifier = c(1:(id-1)),
+         time.optimize.ssr = 2000:2010, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+     
+  } else
+     dataprep.out <- dataprep(prop_crime, 
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+          list("rate", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",       
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = id, 
+         controls.identifier = c(1:(id-1), (id+1):52),
+         time.optimize.ssr = 2000:2010, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+  
+  synth.out = synth(data.prep.obj = dataprep.out, method = "BFGS")
+  
+  gaps <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
+
+  gaps <- data.frame("Year"=rownames(gaps), gaps)
+  
+  return(gaps)
+  
+  # path.plot(synth.res=synth.out, dataprep.res = dataprep.out, 
+  #         Ylab="Property Crime rate per 100k people", Xlab="year",
+  #         Legend = c(id,"Synthetic"),
+  #         Legend.position = "bottomleft", tr.intake = 2014.9166)
+  # abline(v = 2014.9166, col = "red")
+  # rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
+}
+
+```
+
+
+```{r}
+gaps <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
+
+gaps<- data.frame("Year"=rownames(gaps), gaps)
+
+
+AL_gap <- iter_state(1)
+AK_gap <- iter_state(2)
+
+
+plot(gaps, type="l", lwd = 2, ylim = c(-500, 500))
+# lines(AL_gap$Year, AL_gap$X1, col ="grey")
+# lines(AK_gap$Year, AK_gap[,2], col ="grey")
+# 
+# AK_gap[,2]
+abline(v = 2014.9166, col = "red")
+abline(h = 0, lty = 2)
+for (id in seq(1,52)) {
+  state_gap <- iter_state(id)
+
+  lines(state_gap[,1], state_gap[,2], col ="grey")
+}
+
+```
+
+How do I make this graph less messy? What criteria do I use to choose which tests I should use?
+
+
+
+
+
+
+Gaps 
+```{r}
+gaps.plot(synth.res = synth.out, dataprep.res = c(dataprep.out), Ylab = "Gap in Property Crime rate per 100k people", Xlab= "year", Main = NA)
+abline(v = 2014.9166, col = "red")
+```
+
+
+
 Summary Tables
 ```{r}
 synth.tables = synth.tab(dataprep.res = dataprep.out, synth.res = synth.out)
@@ -166,12 +279,18 @@ iter_year <- function(year){
    
   synth.out = synth(data.prep.obj = dataprep.out, method = "BFGS")
   
-  path.plot(synth.res=synth.out, dataprep.res = dataprep.out, 
-          Ylab="Property Crime rate per 100k people", Xlab="year",
-          Legend = c(paste("California", year),"Synthetic"),
-          Legend.position = "bottomleft", tr.intake = 2014.9166)
-  abline(v = 2014.9166, col = "red")
-  rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
+  gaps <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
+
+  gaps <- data.frame("Year"=rownames(gaps), gaps)
+  
+  return(gaps)
+  
+  # path.plot(synth.res=synth.out, dataprep.res = dataprep.out, 
+  #         Ylab="Property Crime rate per 100k people", Xlab="year",
+  #         Legend = c(paste("California", year),"Synthetic"),
+  #         Legend.position = "bottomleft", tr.intake = 2014.9166)
+  # abline(v = 2014.9166, col = "red")
+  # rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
   
 }
 ```
@@ -179,9 +298,24 @@ iter_year <- function(year){
 
 ```{r}
 
-for(i in seq(2000,2010)){
-  iter_year(i)
+gaps <- dataprep2.out$Y1plot - (dataprep2.out$Y0plot %*% synth2.out$solution.w)
+
+gaps <- data.frame("Year"=rownames(gaps), gaps)
+
+
+plot(gaps, type="l", lwd = 6, ylim = c(-500, 500))
+abline(v = 2014.9166, col = "red")
+abline(h = 0, lty = 2)
+
+for (i in seq(2000,2010)) {
+  year_gap <- iter_year(i)
+
+  lines(year_gap[,1], year_gap[,2], col ="grey")
 }
+
+# for(i in seq(2000,2010)){
+#   iter_year(i)
+# }
 
 ```
 
@@ -263,7 +397,6 @@ iter_state <- function(id){   # special cases for id = 1 and 52
 for (id in seq(1,52)) {
   iter_state(id)
 }
-
 
 ```
 
