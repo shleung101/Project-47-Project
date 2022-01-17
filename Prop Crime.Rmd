@@ -151,7 +151,7 @@ AL_gap <- iter_state(1)
 AK_gap <- iter_state(2)
 
 
-plot(gaps, type="l", lwd = 2, ylim = c(-500, 500))
+plot(gaps, type="l", lwd = 2, ylim = c(-500, 500), Ylab = "Gap in Property Crime rate per 100k people")
 # lines(AL_gap$Year, AL_gap$X1, col ="grey")
 # lines(AK_gap$Year, AK_gap[,2], col ="grey")
 # 
@@ -166,9 +166,8 @@ for (id in seq(1,52)) {
 
 ```
 
-How do I make this graph less messy? What criteria do I use to choose which tests I should use?
-
-
+- How do I make this graph less messy? What criteria do I use to choose which tests I should use?
+- Why is there a peak at 2010? 
 
 
 
@@ -333,7 +332,7 @@ Iterate over different states as the treatment group
 # Create generic function that goes through dataprep, synth.out, and plot 
 # for state id 2-51
 
-iter_state <- function(id){   # special cases for id = 1 and 52
+old_iter_state <- function(id){   # special cases for id = 1 and 52
   
   if (id == 1) {  
      dataprep.out <- dataprep(prop_crime, 
@@ -436,5 +435,94 @@ gaps.plot(synth.res = synth.out, dataprep.res = dataprep3.out, Ylab = "Gap in Pr
 abline(v = 2014.9166, col = "red")
 ```
 
+///////////////////////////////////SC WITH NO RAISE STATES/////////////////////////////////////////////////
 
 
+Read data 
+```{r}
+library(readxl)
+NR_prop_crime <- read_excel("~/Thesis/No Raise Master State Crime.xlsx", 
+    sheet = "Property Crime(NR)", skip = 1)
+
+NR_prop_crime = rename(NR_prop_crime, State = "No Raise States")
+
+head(NR_prop_crime)
+```
+
+
+```{r}
+NR_prop_crime <- pivot_longer(NR_prop_crime, cols = c(-State), names_to = "year", values_to = "rate") %>%
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+# NR_prop_crime$`No Raise States`
+# # 
+# as.numeric(factor(NR_prop_crime$`No Raise States`))
+
+NR_prop_crime
+
+```
+
+
+```{r}
+dataprep.nr <- dataprep(prop_crime, 
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+         list("rate", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",       # ????? 
+         unit.names.variable = "State", # ?????
+         time.variable = "year", 
+         treatment.identifier = 5, 
+         controls.identifier = c(1:4, 6:52),
+         time.optimize.ssr = 2000:2010, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+```
+
+
+```{r}
+synth.nr = synth(data.prep.obj = dataprep.out, method = "BFGS")
+```
+
+
+
+```{r}
+gaps <- dataprep.nr$Y1plot - (dataprep.nr$Y0plot %*% synth.nr$solution.w)
+
+gaps<- data.frame("Year"=rownames(gaps), gaps)
+
+
+AL_gap <- iter_state(1)
+AK_gap <- iter_state(2)
+
+
+plot(gaps, type="l", lwd = 2, ylim = c(-500, 500), Ylab = "Gap in Property Crime rate per 100k people")
+# lines(AL_gap$Year, AL_gap$X1, col ="grey")
+# lines(AK_gap$Year, AK_gap[,2], col ="grey")
+# 
+# AK_gap[,2]
+abline(v = 2014.9166, col = "red")
+abline(h = 0, lty = 2)
+for (id in seq(1,14)) {
+  state_gap <- iter_state(id)
+
+  lines(state_gap[,1], state_gap[,2], col ="grey")
+}
+```
+
+
+
+Path.plot with California as the treatment
+```{r}
+path.plot(synth.res=synth.nr, dataprep.res = dataprep.nr, 
+          Ylab="Property Crime rate per 100k people", Xlab="year",
+          Legend = c("California","Synthetic California"),
+          Legend.position = "bottomleft")
+abline(v = 2014.9166, col = "red")
+rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
+```
+
+Gap plot California treatment
+```{r}
+gaps.plot(synth.res = synth.nr, dataprep.res = c(dataprep.nr), Ylab = "Gap in Property Crime rate per 100k people", Xlab= "year", Main = NA)
+abline(v = 2014.9166, col = "red")
+```
