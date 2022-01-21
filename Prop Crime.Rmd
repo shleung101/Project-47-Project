@@ -172,57 +172,10 @@ for (id in seq(1,52)) {
 
 
 
-Gaps 
-```{r}
-gaps.plot(synth.res = synth.out, dataprep.res = c(dataprep.out), Ylab = "Gap in Property Crime rate per 100k people", Xlab= "year", Main = NA)
-abline(v = 2014.9166, col = "red")
-```
 
 
 
-Summary Tables
-```{r}
-synth.tables = synth.tab(dataprep.res = dataprep.out, synth.res = synth.out)
-
-names(synth.tables)
-```
-
-Table comparing pre-treatment predictor values for the treated unit, the synthetic control, and all the units in the sample (What does this mean in our case?)
-```{r}
-synth.tables$tab.pred
-```
-
-
-```{r}
-synth.tables$tab.loss
-```
-
-Weights for each state
-```{r}
-synth.tables$tab.w
-```
-
-
-Plotting before and after treatment
-```{r}
-path.plot(synth.res=synth.out, dataprep.res = dataprep.out, 
-          Ylab="Property Crime rate per 100k people", Xlab="year",
-          Legend = c("California","Synthetic California"),
-          Legend.position = "bottomleft")
-abline(v = 2014.9166, col = "red")
-rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
-```
-Gaps 
-```{r}
-gaps.plot(synth.res = synth.out, dataprep.res = c(dataprep.out), Ylab = "Gap in Property Crime rate per 100k people", Xlab= "year", Main = NA)
-abline(v = 2014.9166, col = "red")
-```
-
-
-
-
-
-Adjusting pretreatment periods
+///////////////////////////// Adjusting pretreatment periods//////////////////////////////
 
 ```{r}
 prop_crime <- as.data.frame(prop_crime)
@@ -233,14 +186,14 @@ prop_crime <- as.data.frame(prop_crime)
 dataprep2.out <- dataprep(prop_crime, 
          time.predictors.prior = 2000:2005,
          special.predictors = list(
-         list("rate", 2000:2005, "mean")),
+         list("rate", 2000:2010, "mean")),
          dependent = "rate", 
          unit.variable = "ID",        
          unit.names.variable = "State", 
          time.variable = "year", 
          treatment.identifier = 5, 
          controls.identifier = c(1:4, 6:52),
-         time.optimize.ssr = 2000:2005, # pretreatment period
+         time.optimize.ssr = 2000:2010, # pretreatment period
          time.plot = 2000:2019) # time period to be plotted
 ```
 
@@ -472,15 +425,15 @@ dataprep.nr <- dataprep(prop_crime,
          unit.variable = "ID",       # ????? 
          unit.names.variable = "State", # ?????
          time.variable = "year", 
-         treatment.identifier = 5, 
-         controls.identifier = c(1:4, 6:52),
+         treatment.identifier = 1, 
+         controls.identifier = c(2:14),
          time.optimize.ssr = 2000:2010, # pretreatment period
          time.plot = 2000:2019) # time period to be plotted
 ```
 
 
 ```{r}
-synth.nr = synth(data.prep.obj = dataprep.out, method = "BFGS")
+synth.nr = synth(data.prep.obj = dataprep.nr, method = "BFGS")
 ```
 
 
