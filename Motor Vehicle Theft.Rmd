@@ -268,7 +268,7 @@ gaps<- data.frame("Year"=rownames(gaps), gaps)
 
 
 
-plot(gaps, type="l", lwd = 2, ylim = c(-500, 500), Ylab = "Gap in mvtlary Crime rate per 100k people")
+plot(gaps, type="l", lwd = 2, ylim = c(-500, 500), Ylab = "Gap in Motor Vehicle Theft rate per 100k people")
 
 abline(v = 2014.9166, col = "red")
 abline(h = 0, lty = 2)
