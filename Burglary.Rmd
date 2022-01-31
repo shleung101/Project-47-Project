@@ -227,7 +227,6 @@ head(NR_burg)
 NR_burg <- pivot_longer(NR_burg, cols = c(-State), names_to = "year", values_to = "rate") %>%
   transform(ID = as.numeric(factor(State)), year = as.numeric(year))
 
-
 NR_burg
 
 ```

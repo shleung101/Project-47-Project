@@ -63,7 +63,7 @@ Z0 = 51 states after treatment (6 x 51)
 
 
 ```{r}
-synth.out = synth(data.prep.obj = dataprep.out, method = "BFGS")
+synth.out = synth(data.prep.obj = dataprep.out, optimxmethod = c("All"))
 ```
 
 
@@ -198,7 +198,7 @@ dataprep2.out <- dataprep(prop_crime,
 ```
 
 ```{r}
-synth2.out = synth(data.prep.obj = dataprep2.out, method = "BFGS")
+synth2.out = synth(data.prep.obj = dataprep2.out, method = "All")
 ```
 
 
@@ -418,22 +418,22 @@ NR_prop_crime
 
 ```{r}
 dataprep.nr <- dataprep(prop_crime, 
-         time.predictors.prior = 2000:2010,
+         time.predictors.prior = c(2000:2010),
          special.predictors = list(
          list("rate", 2000:2010, "mean")),
          dependent = "rate", 
-         unit.variable = "ID",       # ????? 
-         unit.names.variable = "State", # ?????
+         unit.variable = "ID",        
+         unit.names.variable = "State", 
          time.variable = "year", 
          treatment.identifier = 1, 
          controls.identifier = c(2:14),
-         time.optimize.ssr = 2000:2010, # pretreatment period
-         time.plot = 2000:2019) # time period to be plotted
+         time.optimize.ssr = c(2000:2010), # pretreatment period
+         time.plot = c(2000:2019)) # time period to be plotted
 ```
 
 
 ```{r}
-synth.nr = synth(data.prep.obj = dataprep.nr, method = "BFGS")
+synth.nr = synth(data.prep.obj = dataprep.nr, method = "All")
 ```
 
 
