@@ -1,0 +1,416 @@
+---
+title: "Regular DiD"
+author: "Serena Leung"
+date: "1/28/2022"
+output: html_document
+---
+
+Regular DiD
+
+```{r}
+library(Synth)
+library(tidyverse)
+```
+
+
+Read data 
+```{r}
+library(readxl)
+prop_crime <- read_excel("~/Thesis/Master State Crime.xlsx", 
+    sheet = "Property Crime", skip = 1)
+prop_crime
+```
+
+
+```{r}
+no_cal <- prop_crime %>% filter(State != c("California")) %>% 
+  pivot_longer(c(-State), names_to = "Year") %>% group_by(Year) %>% 
+  summarise(state_avg = mean(value))
+
+cal <- prop_crime %>% filter(State == c("California")) %>% pivot_longer(c(-State), names_to = "Year") %>% select(c(-State))
+
+```
+
+```{r}
+colnames(cal)
+
+plot(no_cal, type = "l", xlab = "Year", ylab = "Property Crime Rates per 100k", main = "Property Crime Rates between California and State Averages")
+lines(cal$Year, cal$value, col="blue", type = "l")
+abline(v = 2014.9166, col = "red")
+legend("topright", c("State Average Property Crime", "California Property Crime"),
+       lty = c(1,1),
+       col = c("black", "blue"))
+```
+
+###### LARCENY ########
+
+```{r}
+library(readxl)
+larc <- read_excel("~/Thesis/Master State Crime.xlsx", 
+    sheet = "Larceny-theft", skip = 1)
+larc
+```
+
+
+```{r}
+larc <- pivot_longer(larc, cols = c(-State), names_to = "year", values_to = "rate") %>% 
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+larc
+
+cal_larc <- larc %>% filter(State == "California")
+
+no_cal_larc <- larc %>% filter(State != "California") %>% group_by(year) %>% 
+  summarise(state_avg = mean(rate))
+```
+
+```{r}
+crime <- "Larceny Theft"
+
+plot(no_cal_larc$year, no_cal_larc$state_avg, type = "l", xlab = "Year", ylab = paste(crime, "Rates per 100k"), main = paste(crime,"Rates Between California and State Averages"))
+
+lines(cal_larc$year, cal_larc$rate, type = "l", col = "blue")
+abline(v = 2014.9166, col = "red")
+
+legend("topright", c(paste("State Average", crime), paste("California", crime)),
+       lty = c(1,1),
+       col = c("black", "blue"))
+```
+
+
+
+#### Motor Vehicle Theft #####
+```{r}
+library(readxl)
+mvt <- read_excel("~/Thesis/Master State Crime.xlsx", 
+    sheet = "Motor Vehicle Theft", skip = 1)
+mvt
+```
+
+
+```{r}
+mvt <- pivot_longer(mvt, cols = c(-State), names_to = "year", values_to = "rate") %>% 
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+cal_mvt <- mvt %>% filter(State == "California")
+
+nc_mvt <- mvt %>% filter(State != "California") %>% group_by(year) %>% 
+  summarise(state_avg = mean(rate))
+```
+
+
+
+
+```{r}
+crime <- "Motor Vehicle Theft"
+
+plot(nc_mvt$year, nc_mvt$state_avg, type = "l", xlab = "Year", ylab = paste(crime, "Rates per 100k"), main = paste(crime,"Rates Between California and State Averages"), ylim = c(0,800))
+
+lines(cal_mvt$year, cal_mvt$rate, type = "l", col = "blue")
+abline(v = 2014.9166, col = "red")
+legend("topright", c(paste("State Average", crime), paste("California", crime)),
+       lty = c(1,1),
+       col = c("black", "blue"))
+```
+
+#### BURGLARY #####
+
+Read data 
+```{r}
+library(readxl)
+burg <- read_excel("~/Thesis/Master State Crime.xlsx", 
+    sheet = "Burglary", skip = 1)
+burg
+```
+
+
+```{r}
+burg <- pivot_longer(burg, cols = c(-State), names_to = "year", values_to = "rate") %>% 
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+
+cal_mvt <- burg %>% filter(State == "California")
+
+nc_mvt <- burg %>% filter(State != "California") %>% group_by(year) %>% 
+  summarise(state_avg = mean(rate))
+```
+
+
+
+```{r}
+crime <- "Burglary"
+
+plot(nc_mvt$year, nc_mvt$state_avg, type = "l", xlab = "Year", ylab = paste(crime, "Rates per 100k"), main = paste(crime,"Rates Between California and State Averages"), ylim = c(0,800))
+
+lines(cal_mvt$year, cal_mvt$rate, type = "l", col = "blue")
+abline(v = 2014.9166, col = "red")
+legend("topright", c(paste("State Average", crime), paste("California", crime)),
+       lty = c(1,1),
+       col = c("black", "blue"))
+```
+
+##### ROBBERY ###### 
+```{r}
+library(readxl)
+robbery <- read_excel("~/Thesis/Master State Crime.xlsx", 
+    sheet = "Robbery", skip = 1)
+robbery
+```
+
+```{r}
+rob <- pivot_longer(robbery, cols = c(-State), names_to = "year", values_to = "rate") %>% 
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+
+cal_rob <- rob %>% filter(State == "California")
+
+nc_rob <- rob %>% filter(State != "California") %>% group_by(year) %>% 
+  summarise(state_avg = mean(rate))
+```
+
+
+
+```{r}
+crime <- "Robbery"
+
+plot(nc_rob$year, nc_rob$state_avg, type = "l", xlab = "Year", ylab = paste(crime, "Rates per 100k"), main = paste(crime,"Rates Between California and State Averages"), ylim = c(0,400))
+
+lines(cal_rob$year, cal_rob$rate, type = "l", col = "blue")
+abline(v = 2014.9166, col = "red")
+legend("topright", c(paste("State Average", crime), paste("California", crime)),
+       lty = c(1,1),
+       col = c("black", "blue"))
+```
+
+##### VIOLENT CRIME #####
+
+```{r}
+library(readxl)
+vio_crime <- read_excel("~/Thesis/Master State Crime.xlsx", 
+    sheet = "Violent Crime", skip = 1)
+vio_crime
+```
+
+
+```{r}
+vio <- pivot_longer(vio_crime, cols = c(-State), names_to = "year", values_to = "rate") %>% 
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+
+cal_vio <- vio %>% filter(State == "California")
+
+nc_vio <- vio %>% filter(State != "California") %>% group_by(year) %>% 
+  summarise(state_avg = mean(rate))
+```
+
+
+
+```{r}
+crime <- "Violent Crime"
+
+plot(nc_vio$year, nc_vio$state_avg, type = "l", xlab = "Year", ylab = paste(crime, "Rates per 100k"), main = paste(crime,"Rates Between California and State Averages"), ylim = c(0,800))
+
+lines(cal_vio$year, cal_vio$rate, type = "l", col = "blue")
+abline(v = 2014.9166, col = "red")
+legend("topright", c(paste("State Average", crime), paste("California", crime)),
+       lty = c(1,1),
+       col = c("black", "blue"))
+```
+
+
+#### REGULAR DiD  WITH NO RAISE STATES ########
+
+
+###### LARCENY ####
+
+```{r}
+library(readxl)
+NR_larc <- read_excel("~/Thesis/No Raise Master State Crime.xlsx", 
+    sheet = "Larceny-theft (NR)", skip = 1)
+
+NR_larc = rename(NR_larc, State = "No Raise States")
+
+head(NR_larc)
+
+```
+
+
+
+```{r}
+NR_larc <- pivot_longer(NR_larc, cols = c(-State), names_to = "year", values_to = "rate") %>%
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+cal_vio <-NR_larc %>% filter(State == "California")
+
+nc_vio <- vio %>% filter(State != "California") %>% group_by(year) %>% 
+  summarise(state_avg = mean(rate))
+
+```
+
+
+```{r}
+crime <- "Larceny Theft"
+
+plot(nc_vio$year, nc_vio$state_avg, type = "l", xlab = "Year", ylab = paste(crime, "Rates per 100k"), main = paste(crime,"Rates Between California and NR State Averages"), ylim = c(0,2450))
+
+lines(cal_vio$year, cal_vio$rate, type = "l", col = "blue")
+abline(v = 2014.9166, col = "red")
+legend("topright", c(paste("NR State Average", crime), paste("California", crime)),
+       lty = c(1,1),
+       col = c("black", "blue"))
+```
+
+
+
+###### MOTOR VEHICLE THEFT ####
+
+```{r}
+library(readxl)
+NR_mvt <- read_excel("~/Thesis/No Raise Master State Crime.xlsx", 
+    sheet = "Motor Vehicle Theft (NR)", skip = 1)
+
+NR_mvt = rename(NR_mvt, State = "No Raise States")
+
+head(NR_mvt)
+
+```
+
+
+
+```{r}
+NR_mvt <- pivot_longer(NR_mvt, cols = c(-State), names_to = "year", values_to = "rate") %>%
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+cal <- NR_mvt %>% filter(State == "California")
+
+nc <- NR_mvt %>% filter(State != "California") %>% group_by(year) %>% 
+  summarise(state_avg = mean(rate))
+```
+
+
+
+```{r}
+crime <- "Motor Vehicle Theft "
+
+plot(nc$year, nc$state_avg, type = "l", xlab = "Year", ylab = paste(crime, "Rates per 100k"), main = paste(crime,"Rates Between California and NR State Averages"), ylim = c(0,800))
+
+lines(cal$year, cal$rate, type = "l", col = "blue")
+abline(v = 2014.9166, col = "red")
+legend("topright", c(paste("NR State Average", crime), paste("California", crime)),
+       lty = c(1,1),
+       col = c("black", "blue"))
+```
+
+
+###### BURGLARY ####
+
+```{r}
+library(readxl)
+NR_burg <- read_excel("~/Thesis/No Raise Master State Crime.xlsx", 
+    sheet = "Burglary (NR)", skip = 1)
+
+NR_burg = rename(NR_burg, State = "No Raise State")
+
+head(NR_burg)
+
+```
+
+
+```{r}
+NR_burg <- pivot_longer(NR_burg, cols = c(-State), names_to = "year", values_to = "rate") %>% 
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+
+cal <- NR_burg %>% filter(State == "California")
+
+nc <- NR_burg %>% filter(State != "California") %>% group_by(year) %>% 
+  summarise(state_avg = mean(rate))
+```
+
+
+
+```{r}
+crime <- "Burglary"
+
+plot(nc$year, nc$state_avg, type = "l", xlab = "Year", ylab = paste(crime, "Rates per 100k"), main = paste(crime,"Rates Between California and NR State Averages"), ylim = c(0,800))
+
+lines(cal$year, cal$rate, type = "l", col = "blue")
+abline(v = 2014.9166, col = "red")
+legend("topright", c(paste("NR State Average", crime), paste("California", crime)),
+       lty = c(1,1),
+       col = c("black", "blue"))
+```
+
+###### ROBBERY ####
+
+```{r}
+library(readxl)
+NR_rob <- read_excel("~/Thesis/No Raise Master State Crime.xlsx", 
+    sheet = "Robbery (NR)", skip = 1)
+
+head(NR_rob)
+
+```
+
+```{r}
+NR_rob <- pivot_longer(NR_rob, cols = c(-State), names_to = "year", values_to = "rate") %>% 
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+
+cal <- NR_rob %>% filter(State == "California")
+
+nc <- NR_rob %>% filter(State != "California") %>% group_by(year) %>% 
+  summarise(state_avg = mean(rate))
+```
+
+
+
+```{r}
+crime <- "Robbery"
+
+plot(nc$year, nc$state_avg, type = "l", xlab = "Year", ylab = paste(crime, "Rates per 100k"), main = paste(crime,"Rates Between California and NR State Averages"), ylim = c(0,400))
+
+lines(cal$year, cal$rate, type = "l", col = "blue")
+abline(v = 2014.9166, col = "red")
+legend("topright", c(paste("NR State Average", crime), paste("California", crime)),
+       lty = c(1,1),
+       col = c("black", "blue"))
+```
+
+###### VIOLENT CRIME ####
+
+```{r}
+library(readxl)
+NR_vio_crime <- read_excel("~/Thesis/No Raise Master State Crime.xlsx", 
+    sheet = "Violent Crime (NR)", skip = 1)
+
+NR_vio_crime = rename(NR_vio_crime, State = "No Raise States")
+
+head(NR_vio_crime)
+
+```
+
+```{r}
+NR_vio <- pivot_longer(NR_vio_crime, cols = c(-State), names_to = "year", values_to = "rate") %>% 
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+
+cal <- NR_vio %>% filter(State == "California")
+
+nc <- NR_vio %>% filter(State != "California") %>% group_by(year) %>% 
+  summarise(state_avg = mean(rate))
+```
+
+
+
+```{r}
+crime <- "Violent Crime"
+
+plot(nc$year, nc$state_avg, type = "l", xlab = "Year", ylab = paste(crime, "Rates per 100k"), main = paste(crime,"Rates Between California and NR State Averages"), ylim = c(0,800))
+
+lines(cal$year, cal$rate, type = "l", col = "blue")
+abline(v = 2014.9166, col = "red")
+legend("topright", c(paste("NR State Average", crime), paste("California", crime)),
+       lty = c(1,1),
+       col = c("black", "blue"))
+```

@@ -1,0 +1,109 @@
+---
+title: "Predictor Variables"
+author: "Serena Leung"
+date: "1/30/2022"
+output: html_document
+---
+
+
+## Loading Predictor Variables 
+```{r}
+library(Synth)
+library(readxl)
+library(tidyverse)
+
+# Unemployment Rate
+UR_Data <- read_excel("~/Thesis/Predictors/UR Data.xlsx", 
+    sheet = "Sheet1")
+
+UR_Data <- UR_Data %>% filter(Year >= 2000) %>% mutate(year = as.numeric(Year)) %>% select(-c("FIPS Code", Total, Month, Year)) 
+```
+
+```{r}
+student_exp <- read_excel("~/Thesis/Predictors/Student Expenditure 08.xls") %>% 
+  pivot_longer(cols = c(-State), names_to = "year", values_to = "pupil_exp") %>% 
+  mutate(year = as.numeric(year))
+head(student_exp)
+```
+
+State GDP
+```{r}
+library(readr)
+state_gdp <- read_csv("~/Thesis/Predictors/GDP by State.csv", skip = 4) %>% 
+  select(-c(GeoFips, "1997", "1998", "1999")) %>% 
+  pivot_longer(cols = c(-GeoName), names_to = "year", values_to = "state_gdp") %>% 
+  rename(State = GeoName) %>% 
+  mutate(year = as.numeric(year))
+
+  
+head(state_gdp)
+```
+
+
+
+## Property Crime (No Raise States)
+```{r}
+library(readxl)
+NR_prop_crime <- read_excel("~/Thesis/No Raise Master State Crime.xlsx", 
+    sheet = "Property Crime(NR)", skip = 1)
+
+NR_prop_crime = rename(NR_prop_crime, State = "No Raise States")
+
+head(NR_prop_crime)
+```
+
+
+```{r}
+pred_prop <- pivot_longer(NR_prop_crime, cols = c(-State), names_to = "year", values_to = "rate") %>%
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+
+pred_prop
+
+```
+
+
+
+Join tables together
+```{r}
+pred_prop <- pred_prop %>% 
+  left_join(UR_Data) %>% 
+  left_join(student_exp) %>% 
+  left_join(state_gdp)
+
+pred_prop
+```
+
+```{r}
+dataprep.pred <- dataprep(pred_prop,
+         predictors = c("UR", "pupil_exp", "state_gdp"),
+         predictors.op = "mean",
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+         list("rate", 2000:2010, "mean"),
+         list("UR", 2000:2010, "mean"),
+         list("pupil_exp",2000:2010, "mean"),
+         list("state_gdp", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",        
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = 1, 
+         controls.identifier = c(2:14),
+         time.optimize.ssr = c(2000:2010), # pretreatment period
+         time.plot = c(2000:2019)) # time period to be plotted
+```
+
+
+```{r}
+synth.pred = synth(data.prep.obj = dataprep.pred, method = "All")
+```
+
+```{r}
+path.plot(synth.res=synth.pred, dataprep.res = dataprep.pred, 
+          Ylab="Property Crime rate per 100k people", Xlab="year",
+          Legend = c("Alabama","Synthetic California"),
+          Legend.position = "bottomleft")
+abline(v = 2014.9166, col = "red")
+rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
+```
