@@ -40,6 +40,70 @@ head(state_gdp)
 ```
 
 
+Iter state function for plotting gap plot 
+(Specifically for No Raise States)
+
+```{r}
+# Create generic function that goes through dataprep, synth.out, and plot 
+# for state id 2-51
+
+iter_state <- function(dataset, id){   # special cases for id = 1 and 52
+  
+  if (id == 1) {  
+     dataprep.out <- dataprep(dataset, 
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+          list("rate", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",       
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = id, 
+         controls.identifier = c((id+1):14),
+         time.optimize.ssr = 2000:2010, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+     
+  } else if (id == 14) {
+    
+     dataprep.out <- dataprep(dataset, 
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+          list("rate", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",       
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = id, 
+         controls.identifier = c(1:(id-1)),
+         time.optimize.ssr = 2000:2010, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+     
+  } else
+     dataprep.out <- dataprep(dataset, 
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+          list("rate", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",       
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = id, 
+         controls.identifier = c(1:(id-1), (id+1):14),
+         time.optimize.ssr = 2000:2010, # pretreatment period
+         time.plot = 2000:2019) # time period to be plotted
+  
+  synth.out = synth(data.prep.obj = dataprep.out, method = "BFGS")
+  
+  gaps <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
+
+  gaps <- data.frame("Year"=rownames(gaps), gaps)
+  
+  return(gaps)
+
+}
+
+```
+
 
 ## Property Crime (No Raise States)
 ```{r}
@@ -75,7 +139,7 @@ pred_prop
 ```
 
 ```{r}
-dataprep.pred <- dataprep(pred_prop,
+dataprep.prop <- dataprep(pred_prop,
          predictors = c("UR", "pupil_exp", "state_gdp"),
          predictors.op = "mean",
          time.predictors.prior = 2000:2010,
@@ -96,14 +160,522 @@ dataprep.pred <- dataprep(pred_prop,
 
 
 ```{r}
-synth.pred = synth(data.prep.obj = dataprep.pred, method = "All")
+dataprep.prop$X0
+
+dataprep.prop$X1
 ```
 
+
 ```{r}
-path.plot(synth.res=synth.pred, dataprep.res = dataprep.pred, 
-          Ylab="Property Crime rate per 100k people", Xlab="year",
-          Legend = c("Alabama","Synthetic California"),
+synth.prop = synth(data.prep.obj = dataprep.prop, method = "All")
+```
+
+Covariates Weight Table
+```{r}
+
+cov_weights <- data.frame(synth.prop$solution.w, synth.larc$solution.w, synth.mvt$solution.w, synth.burg$solution.w, synth.rob$solution.w, synth.vio$solution.w)
+
+names(cov_weights) <- c("Property Crime", "Larceny", "Motor Vehicle Theft", "Burglary", "Robbery", "Violent Crime")
+
+cov_weights$ID <- rownames(cov_weights)
+
+pred_prop %>% select("ID", "State") %>% 
+  distinct() %>% 
+  mutate("ID" = as.character(ID))%>% 
+  right_join(cov_weights) %>% 
+  mutate_if(is.numeric, round, digits = 3)
+
+
+
+```
+
+
+Non Covariates Weight Table
+```{r}
+
+```
+
+
+
+```{r}
+pre_loss <- t(dataprep.prop$X1 - dataprep.prop$X0%*% synth.prop$solution.w) %*% (dataprep.prop$X1 - dataprep.prop$X0%*% synth.prop$solution.w)
+pre_loss/10
+
+post_less <- t(dataprep.prop$Z1 - dataprep.prop$Z0%*% synth.prop$solution.w) %*% (dataprep.prop$Z1 - dataprep.prop$Z0%*% synth.prop$solution.w)
+post_less/5
+
+
+sqrt((post_less/5)/(pre_loss/10))
+```
+
+
+
+
+
+```{r}
+path.plot(synth.res=synth.prop, dataprep.res = dataprep.prop, 
+          Ylab="Property Crime rate per 100k people", Xlab="Year", 
+          Main = "Property Crime in California", 
+          Legend = c("California","Synthetic California"),
           Legend.position = "bottomleft")
 abline(v = 2014.9166, col = "red")
 rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
 ```
+```{r}
+gaps <- dataprep.prop$Y1plot - (dataprep.prop$Y0plot %*% synth.prop$solution.w)
+
+gaps<- data.frame("Year"=rownames(gaps), gaps)
+
+
+plot(gaps, type="l", lwd = 2, ylim = c(-500, 500), ylab = "Gap in Property Crime rate per 100k people", main = "Gap Plot for Property Crime")
+
+abline(v = 2014.9166, col = "red")
+abline(h = 0, lty = 2)
+
+for (id in seq(1,14)) {
+  state_gap <- iter_state(pred_prop, id)
+  lines(state_gap[,1], state_gap[,2], col ="grey")
+}
+
+```
+
+#### LARCENY ####### 
+
+
+```{r}
+library(readxl)
+NR_larc <- read_excel("~/Thesis/No Raise Master State Crime.xlsx", 
+    sheet = "Larceny-theft (NR)", skip = 1)
+
+NR_larc = rename(NR_larc, State = "No Raise States")
+
+head(NR_larc)
+
+```
+
+
+
+```{r}
+NR_larc <- pivot_longer(NR_larc, cols = c(-State), names_to = "year", values_to = "rate") %>%
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+NR_larc
+
+```
+
+
+
+```{r}
+
+pred_larc <- NR_larc %>% 
+  left_join(UR_Data) %>% 
+  left_join(student_exp) %>% 
+  left_join(state_gdp)
+```
+
+
+
+```{r}
+dataprep.larc <- dataprep(pred_larc,
+         predictors = c("UR", "pupil_exp", "state_gdp"),
+         predictors.op = "mean",
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+         list("rate", 2000:2010, "mean"),
+         list("UR", 2000:2010, "mean"),
+         list("pupil_exp",2000:2010, "mean"),
+         list("state_gdp", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",        
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = 1, 
+         controls.identifier = c(2:14),
+         time.optimize.ssr = c(2000:2010), # pretreatment period
+         time.plot = c(2000:2019)) # time period to be plotted
+```
+
+
+```{r}
+synth.larc = synth(data.prep.obj = dataprep.larc, method = "All")
+```
+
+```{r}
+path.plot(synth.res=synth.larc, dataprep.res = dataprep.larc, 
+          Ylab="Property Crime rate per 100k people", Xlab="Year", 
+          Main = "Larceny in California", 
+          Legend = c("California","Synthetic California"),
+          Legend.position = "bottomleft")
+abline(v = 2014.9166, col = "red")
+rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
+```
+
+```{r}
+gaps <- dataprep.larc$Y1plot - (dataprep.larc$Y0plot %*% synth.larc$solution.w)
+
+gaps<- data.frame("Year"=rownames(gaps), gaps)
+
+
+plot(gaps, type="l", lwd = 2, ylim = c(-500, 500), ylab = "Gap in Larceny rate per 100k people", main = "Gap Plot for Larceny Theft")
+
+abline(v = 2014.9166, col = "red")
+abline(h = 0, lty = 2)
+
+for (id in seq(1,14)) {
+  state_gap <- iter_state(pred_prop, id)
+  lines(state_gap[,1], state_gap[,2], col ="grey")
+}
+
+```
+
+
+##### MOTOR VEHICLE THEFT #####
+
+```{r}
+library(readxl)
+NR_mvt <- read_excel("~/Thesis/No Raise Master State Crime.xlsx", 
+    sheet = "Motor Vehicle Theft (NR)", skip = 1)
+
+NR_mvt = rename(NR_mvt, State = "No Raise States")
+
+head(NR_mvt)
+
+```
+
+
+
+```{r}
+NR_mvt <- pivot_longer(NR_mvt, cols = c(-State), names_to = "year", values_to = "rate") %>%
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+NR_mvt
+
+```
+
+
+```{r}
+
+pred_mvt <- NR_mvt %>% 
+  left_join(UR_Data) %>% 
+  left_join(student_exp) %>% 
+  left_join(state_gdp)
+```
+
+
+
+```{r}
+dataprep.mvt <- dataprep(pred_mvt,
+         predictors = c("UR", "pupil_exp", "state_gdp"),
+         predictors.op = "mean",
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+         list("rate", 2000:2010, "mean"),
+         list("UR", 2000:2010, "mean"),
+         list("pupil_exp",2000:2010, "mean"),
+         list("state_gdp", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",        
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = 1, 
+         controls.identifier = c(2:14),
+         time.optimize.ssr = c(2000:2010), # pretreatment period
+         time.plot = c(2000:2019)) # time period to be plotted
+```
+
+
+```{r}
+synth.mvt = synth(data.prep.obj = dataprep.mvt, method = "All")
+```
+
+```{r}
+path.plot(synth.res=synth.mvt, dataprep.res = dataprep.mvt, 
+          Ylab="Motor Vehicle Theft rate per 100k people", Xlab="Year", 
+          Main = "Motor Vehicle Theft in California", 
+          Legend = c("California","Synthetic California"),
+          Legend.position = "bottomleft")
+abline(v = 2014.9166, col = "red")
+rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
+```
+
+```{r}
+gaps <- dataprep.mvt$Y1plot - (dataprep.mvt$Y0plot %*% synth.mvt$solution.w)
+
+gaps<- data.frame("Year"=rownames(gaps), gaps)
+
+
+plot(gaps, type="l", lwd = 2, ylim = c(-500, 500), ylab = "Gap in Motor Vehicle Theft rate per 100k people", main = "Gap Plot for Motor Vehicle Theft")
+
+abline(v = 2014.9166, col = "red")
+abline(h = 0, lty = 2)
+
+for (id in seq(1,14)) {
+  state_gap <- iter_state(pred_prop, id)
+  lines(state_gap[,1], state_gap[,2], col ="grey")
+}
+
+```
+
+
+##### ROBBERY #####
+
+
+```{r}
+library(readxl)
+NR_rob <- read_excel("~/Thesis/No Raise Master State Crime.xlsx", 
+    sheet = "Robbery (NR)", skip = 1)
+
+head(NR_rob)
+
+```
+
+
+
+```{r}
+NR_rob <- pivot_longer(NR_rob, cols = c(-State), names_to = "year", values_to = "rate") %>%
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+NR_rob
+
+```
+
+
+```{r}
+
+pred_rob <- NR_rob %>% 
+  left_join(UR_Data) %>% 
+  left_join(student_exp) %>% 
+  left_join(state_gdp)
+```
+
+
+
+```{r}
+dataprep.rob <- dataprep(pred_rob,
+         predictors = c("UR", "pupil_exp", "state_gdp"),
+         predictors.op = "mean",
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+         list("rate", 2000:2010, "mean"),
+         list("UR", 2000:2010, "mean"),
+         list("pupil_exp",2000:2010, "mean"),
+         list("state_gdp", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",        
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = 1, 
+         controls.identifier = c(2:14),
+         time.optimize.ssr = c(2000:2010), # pretreatment period
+         time.plot = c(2000:2019)) # time period to be plotted
+```
+
+
+```{r}
+synth.rob = synth(data.prep.obj = dataprep.rob, method = "All")
+```
+
+```{r}
+path.plot(synth.res=synth.rob, dataprep.res = dataprep.rob, 
+          Ylab="Robbery rate per 100k people", Xlab="Year", 
+          Main = "Robbery in California", 
+          Legend = c("California","Synthetic California"),
+          Legend.position = "bottomleft")
+abline(v = 2014.9166, col = "red")
+rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
+```
+
+```{r}
+gaps <- dataprep.rob$Y1plot - (dataprep.rob$Y0plot %*% synth.rob$solution.w)
+
+gaps<- data.frame("Year"=rownames(gaps), gaps)
+
+
+plot(gaps, type="l", lwd = 2, ylim = c(-500, 500), ylab = "Gap in Robbery rate per 100k people", main = "Gap Plot for Robbery")
+
+abline(v = 2014.9166, col = "red")
+abline(h = 0, lty = 2)
+
+for (id in seq(1,14)) {
+  state_gap <- iter_state(pred_prop, id)
+  lines(state_gap[,1], state_gap[,2], col ="grey")
+}
+
+```
+
+
+##### ROBBERY ######
+
+```{r}
+library(readxl)
+NR_burg <- read_excel("~/Thesis/No Raise Master State Crime.xlsx", 
+    sheet = "Burglary (NR)", skip = 1)
+
+NR_burg = rename(NR_burg, State = "No Raise State")
+
+head(NR_burg)
+
+```
+
+
+
+```{r}
+NR_burg <- pivot_longer(NR_burg, cols = c(-State), names_to = "year", values_to = "rate") %>%
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+NR_burg
+
+```
+
+
+
+```{r}
+
+pred_burg <- NR_burg %>% 
+  left_join(UR_Data) %>% 
+  left_join(student_exp) %>% 
+  left_join(state_gdp)
+```
+
+
+
+```{r}
+dataprep.burg <- dataprep(pred_burg,
+         predictors = c("UR", "pupil_exp", "state_gdp"),
+         predictors.op = "mean",
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+         list("rate", 2000:2010, "mean"),
+         list("UR", 2000:2010, "mean"),
+         list("pupil_exp",2000:2010, "mean"),
+         list("state_gdp", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",        
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = 1, 
+         controls.identifier = c(2:14),
+         time.optimize.ssr = c(2000:2010), # pretreatment period
+         time.plot = c(2000:2019)) # time period to be plotted
+```
+
+
+```{r}
+synth.burg = synth(data.prep.obj = dataprep.burg, method = "All")
+```
+
+```{r}
+path.plot(synth.res=synth.burg, dataprep.res = dataprep.burg, 
+          Ylab="Burglary rate per 100k people", Xlab="Year", 
+          Main = "Burglary in California", 
+          Legend = c("California","Synthetic California"),
+          Legend.position = "bottomleft")
+abline(v = 2014.9166, col = "red")
+rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
+```
+
+```{r}
+gaps <- dataprep.burg$Y1plot - (dataprep.burg$Y0plot %*% synth.burg$solution.w)
+
+gaps<- data.frame("Year"=rownames(gaps), gaps)
+
+
+plot(gaps, type="l", lwd = 2, ylim = c(-500, 500), ylab = "Gap in Burglary rate per 100k people", main = "Gap Plot for Burglary")
+
+abline(v = 2014.9166, col = "red")
+abline(h = 0, lty = 2)
+
+for (id in seq(1,14)) {
+  state_gap <- iter_state(pred_prop, id)
+  lines(state_gap[,1], state_gap[,2], col ="grey")
+}
+
+```
+
+
+##### Violent Crime ##### 
+
+```{r}
+library(readxl)
+NR_vio_crime <- read_excel("~/Thesis/No Raise Master State Crime.xlsx", 
+    sheet = "Violent Crime (NR)", skip = 1)
+
+NR_vio_crime = rename(NR_vio_crime, State = "No Raise States")
+
+head(NR_vio_crime)
+
+```
+
+
+
+```{r}
+NR_vio_crime <- pivot_longer(NR_vio_crime, cols = c(-State), names_to = "year", values_to = "rate") %>%
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+NR_vio_crime
+
+```
+
+```{r}
+
+pred_vio <- NR_vio_crime %>% 
+  left_join(UR_Data) %>% 
+  left_join(student_exp) %>% 
+  left_join(state_gdp)
+```
+
+
+
+```{r}
+dataprep.vio <- dataprep(pred_vio,
+         predictors = c("UR", "pupil_exp", "state_gdp"),
+         predictors.op = "mean",
+         time.predictors.prior = 2000:2010,
+         special.predictors = list(
+         list("rate", 2000:2010, "mean"),
+         list("UR", 2000:2010, "mean"),
+         list("pupil_exp",2000:2010, "mean"),
+         list("state_gdp", 2000:2010, "mean")),
+         dependent = "rate", 
+         unit.variable = "ID",        
+         unit.names.variable = "State", 
+         time.variable = "year", 
+         treatment.identifier = 1, 
+         controls.identifier = c(2:14),
+         time.optimize.ssr = c(2000:2010), # pretreatment period
+         time.plot = c(2000:2019)) # time period to be plotted
+```
+
+
+```{r}
+synth.vio = synth(data.prep.obj = dataprep.vio, method = "All")
+```
+
+```{r}
+path.plot(synth.res=synth.vio, dataprep.res = dataprep.vio, 
+          Ylab="Violent Crime rate per 100k people", Xlab="Year", 
+          Main = "Violent Crime in California", 
+          Legend = c("California","Synthetic California"),
+          Legend.position = "bottomleft")
+abline(v = 2014.9166, col = "red")
+rect(xleft=2011,xright = 2014 ,ybottom=0,ytop= 5000, density=10, col = "gray") # Realignment
+```
+
+```{r}
+gaps <- dataprep.vio$Y1plot - (dataprep.vio$Y0plot %*% synth.vio$solution.w)
+
+gaps<- data.frame("Year"=rownames(gaps), gaps)
+
+
+plot(gaps, type="l", lwd = 2, ylim = c(-500, 500), ylab = "Gap in Violent Crime rate per 100k people", main = "Gap Plot for Violent Crime")
+
+abline(v = 2014.9166, col = "red")
+abline(h = 0, lty = 2)
+
+for (id in seq(1,14)) {
+  state_gap <- iter_state(pred_prop, id)
+  lines(state_gap[,1], state_gap[,2], col ="grey")
+}
+
+```
+

@@ -72,7 +72,7 @@ synth.out = synth(data.prep.obj = dataprep.out, optimxmethod = c("All"))
 
 
 Manually calculating gaps
-
+For 52 states
 ```{r}
 # Create generic function that goes through dataprep, synth.out, and plot 
 # for state id 2-51
@@ -415,9 +415,8 @@ NR_prop_crime
 
 ```
 
-
 ```{r}
-dataprep.nr <- dataprep(prop_crime, 
+dataprep.nr <- dataprep(NR_prop_crime, 
          time.predictors.prior = c(2000:2010),
          special.predictors = list(
          list("rate", 2000:2010, "mean")),
@@ -444,19 +443,14 @@ gaps <- dataprep.nr$Y1plot - (dataprep.nr$Y0plot %*% synth.nr$solution.w)
 gaps<- data.frame("Year"=rownames(gaps), gaps)
 
 
-AL_gap <- iter_state(1)
-AK_gap <- iter_state(2)
-
 
 plot(gaps, type="l", lwd = 2, ylim = c(-500, 500), Ylab = "Gap in Property Crime rate per 100k people")
-# lines(AL_gap$Year, AL_gap$X1, col ="grey")
-# lines(AK_gap$Year, AK_gap[,2], col ="grey")
-# 
-# AK_gap[,2]
+
 abline(v = 2014.9166, col = "red")
 abline(h = 0, lty = 2)
+
 for (id in seq(1,14)) {
-  state_gap <- iter_state(id)
+  state_gap <- iter_state(NR_prop_crime, id)
 
   lines(state_gap[,1], state_gap[,2], col ="grey")
 }
