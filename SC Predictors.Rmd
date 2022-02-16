@@ -138,6 +138,33 @@ pred_prop <- pred_prop %>%
 pred_prop
 ```
 
+Calculating RMSE
+```{r}
+y0 <- pred_prop %>% filter(State != "California") %>% select(State, year, rate) %>% pivot_wider(names_from = year, values_from = rate) %>% as.matrix()
+
+y0 <- y0[,2:ncol(y0)] %>% as.matrix()
+
+y0 <- apply(y0, 2,as.numeric)
+
+y1 <- pred_prop %>% filter(State == "California") %>% select(State, year, rate) %>% pivot_wider(names_from = year, values_from = rate)
+y1 <- apply(y1[,2:ncol(y1)], 2,as.numeric)
+
+yhat <-t(as.matrix(W))%*%y0
+
+synthres<-y1-yhat
+
+RMSE_pre<-sqrt(sum(synthres[1:11]^2)/11)
+RMSE_postall<-sqrt(sum(synthres[12:20]^2)/9)
+RMSE_post<-sqrt(sum(synthres[15:20]^2)/5)
+```
+post should not fit well if there is effect 
+pre should fit well bc you want pretreatment to mimic treatment  
+
+
+
+
+
+
 ```{r}
 dataprep.prop <- dataprep(pred_prop,
          predictors = c("UR", "pupil_exp", "state_gdp"),
@@ -188,27 +215,6 @@ pred_prop %>% select("ID", "State") %>%
 
 
 ```
-
-
-Non Covariates Weight Table
-```{r}
-
-```
-
-
-
-```{r}
-pre_loss <- t(dataprep.prop$X1 - dataprep.prop$X0%*% synth.prop$solution.w) %*% (dataprep.prop$X1 - dataprep.prop$X0%*% synth.prop$solution.w)
-pre_loss/10
-
-post_less <- t(dataprep.prop$Z1 - dataprep.prop$Z0%*% synth.prop$solution.w) %*% (dataprep.prop$Z1 - dataprep.prop$Z0%*% synth.prop$solution.w)
-post_less/5
-
-
-sqrt((post_less/5)/(pre_loss/10))
-```
-
-
 
 
 
@@ -678,4 +684,91 @@ for (id in seq(1,14)) {
 }
 
 ```
+
+
+
+
+
+
+
+
+####################### CALCULATING RMSE FOR EACH OUTCOME #################################
+
+Goal: Calculate RMSE for each state for each outcome 
+```{r}
+me){
+  
+calc_RMSE <- function(id, outco
+  # Control States 
+  y0 <- outcome %>% filter(ID != id) %>% select(State, year, rate) %>% pivot_wider(names_from = year,             values_from = rate) %>% as.matrix()
+  y0 <- y0[,2:ncol(y0)] %>% as.matrix()
+  y0 <- apply(y0, 2,as.numeric)values_from = rate)
+  y1 <- apply(y1[,2:ncol(y1)], 2,as.numeric)
+  
+  # Synthetic State values
+  
+  # Treated State
+  y1 <- outcome %>% filter(ID == id) %>% select(State, year, rate) %>% pivot_wider(names_from = year, 
+        
+  yhat <-t(as.matrix(W))%*%y0
+  
+  # True - Synthetic
+  synthres<-y1-yhat
+  
+  RMSE_pre<-sqrt(sum(synthres[1:11]^2)/11)
+  RMSE_postall<-sqrt(sum(synthres[12:20]^2)/9)
+  RMSE_post<-sqrt(sum(synthres[15:20]^2)/5)
+  
+  return(RMSE_post/RMSE_pre)
+}
+```
+
+```{r}
+RMSE_loop <- function(outcome){
+  RMSE_values <- rep(NA, 14)
+  
+  for (i in 1:14) {
+    RMSE_values[i] <- calc_RMSE(i, outcome)
+  }
+  return(RMSE_values)
+}
+
+prop_RMSE <- RMSE_loop(pred_prop)
+larc_RMSE <- RMSE_loop(pred_larc)
+mvt_RMSE <- RMSE_loop(pred_mvt)
+rob_RMSE <- RMSE_loop(pred_rob)
+burg_RMSE <- RMSE_loop(pred_burg)
+vio_RMSE <- RMSE_loop(pred_vio)
+
+```
+
+```{r}
+# Create dataframe that holds RMSE values for each outcome 
+inter_df <- data.frame(ID = 1:14, prop_RMSE, larc_RMSE, mvt_RMSE, rob_RMSE, burg_RMSE, vio_RMSE)
+
+# need states 
+
+RMSE_df <- pred_prop %>% select(State, ID) %>% distinct() %>% left_join(inter_df)
+colnames(RMSE_df) <- c("State", "ID", "Property Crime", "Larceny Theft", 
+                       "Motor Vehicle Theft", "Robbery", "Burglary", "Violent Crime")
+
+RMSE_long <- RMSE_df %>% pivot_longer(-c(State, ID), names_to = "outcome", values_to = "values")
+
+library(ggplot2)
+library(forcats)
+library(tidytext)
+
+
+
+ggplot(RMSE_long, aes(values, reorder_within(State, values, outcome), fill = outcome)) +
+     geom_bar(stat = 'identity', show.legend = FALSE) +
+     scale_y_reordered() +
+     facet_wrap(.~outcome, ncol=3,scales = "free_y") +
+    xlab("RMSE Ratio") + ylab("States")
+    
+
+```
+
+
+
 

@@ -218,8 +218,49 @@ legend("topright", c(paste("State Average", crime), paste("California", crime)),
 ```
 
 
-#### REGULAR DiD  WITH NO RAISE STATES ########
+############################# REGULAR DiD  WITH NO RAISE STATES ################################################
 
+
+################ PROPERTY CRIME ###################
+
+```{r}
+library(readxl)
+NR_prop_crime <- read_excel("~/Thesis/No Raise Master State Crime.xlsx", 
+    sheet = "Property Crime(NR)", skip = 1)
+
+NR_prop_crime = rename(NR_prop_crime, State = "No Raise States")
+
+head(NR_prop_crime)
+```
+
+
+```{r}
+NR_prop<- pivot_longer(NR_prop_crime, cols = c(-State), names_to = "year", values_to = "rate") %>%
+  transform(ID = as.numeric(factor(State)), year = as.numeric(year))
+
+NR_prop
+
+```
+
+```{r}
+cal_prop <-NR_prop %>% filter(State == "California")
+
+nc_prop <- NR_prop %>% filter(State != "California") %>% group_by(year) %>% 
+  summarise(state_avg = mean(rate))
+```
+
+
+```{r}
+crime <- "Property Crime"
+
+plot(nc_prop$year, nc_prop$state_avg, type = "l", xlab = "Year", ylab = paste(crime, "Rates per 100k"), main = paste(crime,"Rates Between California and NR State Averages"), ylim = c(0,4000))
+
+lines(cal_prop$year, cal_prop$rate, type = "l", col = "blue")
+abline(v = 2014.9166, col = "red")
+legend("topright", c(paste("NR State Average", crime), paste("California", crime)),
+       lty = c(1,1),
+       col = c("black", "blue"))
+```
 
 ###### LARCENY ####
 
